@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Geriatric Conversational Grief Coach</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/marked@9.1.6/marked.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #5B7B8A;
+  --primary-dark: #3D5A6B;
+  --accent: #C4A35A;
+  --warm-bg: #FBF8F3;
+  --warm-card: #FFFFFF;
+  --text-primary: #2D3748;
+  --text-secondary: #5A6577;
+  --soft-border: #E8E0D5;
+  --risk-red: #C53030;
+  --risk-yellow: #D69E2E;
+  --safe-green: #38A169;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  background: var(--warm-bg);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: 'Merriweather', serif; }
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  scroll-behavior: smooth;
+}
+
+.chat-messages::-webkit-scrollbar { width: 6px; }
+.chat-messages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+.message-bubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  line-height: 1.6;
+  font-size: 16px;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.message-bubble p { margin: 0 0 8px 0; }
+.message-bubble p:last-child { margin-bottom: 0; }
+
+.message-user {
+  background: var(--primary);
+  color: white;
+  margin-left: auto;
+  border-bottom-right-radius: 6px;
+}
+
+.message-bot {
+  background: var(--warm-card);
+  color: var(--text-primary);
+  border: 1px solid var(--soft-border);
+  margin-right: auto;
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 14px 18px;
+  background: var(--warm-card);
+  border: 1px solid var(--soft-border);
+  border-radius: 20px;
+  border-bottom-left-radius: 6px;
+  max-width: 80px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.typing-dot {
+  width: 8px; height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite both;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.input-area {
+  padding: 12px 16px;
+  background: var(--warm-card);
+  border-top: 1px solid var(--soft-border);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.input-area textarea {
+  flex: 1;
+  border: 2px solid var(--soft-border);
+  border-radius: 24px;
+  padding: 12px 18px;
+  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  resize: none;
+  outline: none;
+  max-height: 120px;
+  min-height: 48px;
+  line-height: 1.4;
+  background: var(--warm-bg);
+  transition: border-color 0.2s;
+}
+
+.input-area textarea:focus { border-color: var(--primary); }
+
+.send-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, transform 0.1s;
+}
+.send-btn:hover { background: var(--primary-dark); }
+.send-btn:active { transform: scale(0.95); }
+.send-btn:disabled { background: #B0BEC5; cursor: not-allowed; }
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--warm-bg);
+}
+
+.quick-btn {
+  background: var(--warm-card);
+  border: 1px solid var(--soft-border);
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--primary-dark);
+  font-family: 'Open Sans', sans-serif;
+  transition: all 0.2s;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quick-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* Settings / Setup overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.overlay-card {
+  background: var(--warm-card);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--soft-border);
+  border-radius: 12px;
+  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  background: var(--warm-bg);
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 48px;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); }
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  min-height: 48px;
+  font-family: 'Open Sans', sans-serif;
+  transition: background 0.2s;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.risk-low { background: #C6F6D5; color: #22543D; }
+.risk-moderate { background: #FEFCBF; color: #744210; }
+.risk-high { background: #FED7D7; color: #742A2A; }
+
+.nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  color: white;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.15); }
+
+.resource-card {
+  background: var(--warm-card);
+  border: 1px solid var(--soft-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.crisis-banner {
+  background: #FFF5F5;
+  border: 1px solid #FEB2B2;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 8px 16px;
+  font-size: 14px;
+  color: #742A2A;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+</style>
+</head>
+<body>
+
+<div id="app" class="chat-container">
+  <!-- Header -->
+  <header class="flex items-center justify-between px-4 py-3" style="background: var(--primary); color: white;">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">🕊️</span>
+      <div>
+        <h1 class="text-lg font-bold leading-tight" style="font-family: 'Merriweather', serif;">Grief Coach</h1>
+        <p class="text-xs opacity-80">Here for you, always 💛</p>
+      </div>
+    </div>
+    <div class="flex gap-1">
+      <button class="nav-btn" onclick="showResources()" title="Resources">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      </button>
+      <button class="nav-btn" onclick="showSettings()" title="Settings">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Crisis Banner (hidden by default) -->
+  <div id="crisisBanner" class="crisis-banner" style="display:none;">
+    <span class="text-xl">🚨</span>
+    <div>
+      <strong>If you're in crisis:</strong> Call <a href="tel:988" class="underline font-bold">988</a> (Suicide & Crisis Lifeline) or <a href="tel:18002738255" class="underline font-bold">1-800-273-8255</a>. You're not alone.
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div id="chatMessages" class="chat-messages"></div>
+
+  <!-- Quick Actions -->
+  <div id="quickActions" class="quick-actions">
+    <button class="quick-btn" onclick="sendQuick('I need someone to talk to today')">💬 Talk</button>
+    <button class="quick-btn" onclick="sendQuick('Help me with a coping strategy')">🧘 Coping</button>
+    <button class="quick-btn" onclick="sendQuick('Guide me through reminiscence therapy')">📖 Memories</button>
+    <button class="quick-btn" onclick="sendQuick('How am I doing overall?')">📊 Check-in</button>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <textarea id="userInput" rows="1" placeholder="Share what's on your mind..." onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Onboarding Overlay -->
+<div id="onboardingOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card">
+    <div class="text-center mb-6">
+      <span class="text-5xl">🕊️</span>
+      <h2 class="text-2xl font-bold mt-3" style="color: var(--primary-dark);">Welcome to Grief Coach</h2>
+      <p class="text-sm mt-2" style="color: var(--text-secondary);">A gentle companion for your grief journey. Let's personalize your experience. 💛</p>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Your first name</label>
+        <input class="form-input" id="onbName" placeholder="e.g., Margaret" />
+      </div>
+      <div>
+        <label class="form-label">Your role</label>
+        <select class="form-select" id="onbRole">
+          <option value="bereaved">I am grieving a loss</option>
+          <option value="caregiver">I am a caregiver</option>
+          <option value="provider">I am a mental health provider</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Briefly, who are you grieving? <span class="text-xs opacity-60">(optional)</span></label>
+        <input class="form-input" id="onbLoss" placeholder="e.g., My husband of 42 years" />
+      </div>
+      <div>
+        <label class="form-label">Emergency contact name & phone <span class="text-xs opacity-60">(optional)</span></label>
+        <input class="form-input" id="onbContact" placeholder="e.g., Sarah (daughter) 555-0123" />
+      </div>
+      <button class="btn-primary mt-4" onclick="completeOnboarding()">🌿 Begin My Journey</button>
+      <p class="text-xs text-center mt-3" style="color: var(--text-secondary);">Your data stays on your device. We care about your privacy. 🔒</p>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Overlay -->
+<div id="settingsOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-xl font-bold" style="color: var(--primary-dark);">⚙️ Settings</h2>
+      <button onclick="hideSettings()" class="nav-btn" style="color: var(--text-secondary); min-width:36px; min-height:36px;">✕</button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Your name</label>
+        <input class="form-input" id="setName" />
+      </div>
+      <div>
+        <label class="form-label">Your role</label>
+        <select class="form-select" id="setRole">
+          <option value="bereaved">Bereaved individual</option>
+          <option value="caregiver">Caregiver</option>
+          <option value="provider">Mental health provider</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Loss description</label>
+        <input class="form-input" id="setLoss" />
+      </div>
+      <div>
+        <label class="form-label">Emergency contact</label>
+        <input class="form-input" id="setContact" />
+      </div>
+      <div>
+        <label class="form-label">Daily check-in reminder</label>
+        <select class="form-select" id="setReminder">
+          <option value="off">Off</option>
+          <option value="morning">Morning (9 AM)</option>
+          <option value="evening">Evening (7 PM)</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+      <button class="btn-primary mt-2" style="background: #C53030;" onclick="clearAllData()">🗑️ Clear All Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- Resources Overlay -->
+<div id="resourcesOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-xl font-bold" style="color: var(--primary-dark);">📚 Resources</h2>
+      <button onclick="hideResources()" class="nav-btn" style="color: var(--text-secondary); min-width:36px; min-height:36px;">✕</button>
+    </div>
+    <div class="resource-card">
+      <h3 class="font-bold text-base">🚨 Crisis Support</h3>
+      <p class="text-sm mt-1"><strong>988 Suicide & Crisis Lifeline:</strong> <a href="tel:988" class="underline" style="color: var(--primary);">Call 988</a></p>
+      <p class="text-sm"><strong>Crisis Text Line:</strong> Text HOME to <strong>741741</strong></p>
+      <p class="text-sm"><strong>Veterans Crisis:</strong> <a href="tel:18002738255" class="underline" style="color: var(--primary);">1-800-273-8255 (Press 1)</a></p>
+    </div>
+    <div class="resource-card">
+      <h3 class="font-bold text-base">💛 Grief Support</h3>
+      <p class="text-sm mt-1">• GriefShare: <a href="https://www.griefshare.org" target="_blank" class="underline" style="color: var(--primary);">griefshare.org</a></p>
+      <p class="text-sm">• AARP Grief & Loss: <a href="https://www.aarp.org/caregiving/grief-loss/" target="_blank" class="underline" style="color: var(--primary);">aarp.org</a></p>
+      <p class="text-sm">• Eldercare Locator: <a href="tel:18006771116" class="underline" style="color: var(--primary);">1-800-677-1116</a></p>
+    </div>
+    <div class="resource-card">
+      <h3 class="font-bold text-base">🏥 Professional Help</h3>
+      <p class="text-sm mt-1">• Ask your doctor for a geriatric mental health referral</p>
+      <p class="text-sm">• Psychology Today Therapist Finder: <a href="https://www.psychologytoday.com/us/therapists" target="_blank" class="underline" style="color: var(--primary);">psychologytoday.com</a></p>
+    </div>
+    <div id="aiResources"></div>
+    <button class="btn-primary mt-3" onclick="findLocalResources()">🔍 Find Resources Near Me</button>
+  </div>
+</div>
+
+<script>
+// Global tracking variables
+let totalAIInputTokens = 0;
+let totalAIOutputTokens = 0;
+let totalAITime = 0;
+let aiTimingByAlias = {};
+
+// App state
+let appState = {
+  user: null,
+  messages: [],
+  conversationHistory: [],
+  moodHistory: [],
+  riskLevel: 'low',
+  sessionCount: 0,
+  lastVisit: null
+};
+
+const API_BASE = 'https://16504442930.work';
+
+// Load state from localStorage
+function loadState() {
+  try {
+    const saved = localStorage.getItem('griefCoach_state');
+    if (saved) {
+      appState = JSON.parse(saved);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('griefCoach_state', JSON.stringify(appState));
+  } catch(e) {}
+}
+
+// AI call with retry
+async function callAI(alias, params, retries = 3) {
+  const startTime = Date.now();
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}/run_prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias, params })
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        if (attempt < retries - 1) continue;
+        throw new Error(`API Error (${res.status}): ${errText}`);
+      }
+      const data = await res.json();
+      const elapsed = Date.now() - startTime;
+      totalAITime += elapsed;
+      if (!aiTimingByAlias[alias]) aiTimingByAlias[alias] = 0;
+      aiTimingByAlias[alias] += elapsed;
+      if (data.input_tokens) totalAIInputTokens += data.input_tokens;
+      if (data.output_tokens) totalAIOutputTokens += data.output_tokens;
+      return data;
+    } catch(e) {
+      if (attempt === retries - 1) {
+        // Format error with AI
+        try {
+          const errRes = await fetch(`${API_BASE}/run_prompt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              alias: 'genericAI',
+              params: {
+                prompt: `Reformat this error message to be user-friendly and empowering for a senior user of a grief support app. Include a suggestion to fix it. Error: ${e.message}. Return JSON with key "friendly_error" as a string.`
+              }
+            })
+          });
+          if (errRes.ok) {
+            const errData = await errRes.json();
+            throw new Error(errData.friendly_error || e.message);
+          }
+        } catch(e2) {}
+        throw e;
+      }
+    }
+  }
+}
+
+// Initialize
+function init() {
+  const hasState = loadState();
+  if (!hasState || !appState.user) {
+    document.getElementById('onboardingOverlay').style.display = 'flex';
+  } else {
+    appState.sessionCount = (appState.sessionCount || 0) + 1;
+    appState.lastVisit = new Date().toISOString();
+    saveState();
+    renderMessages();
+    if (appState.messages.length === 0) {
+      addWelcomeBack();
+    }
+  }
+}
+
+function completeOnboarding() {
+  const name = document.getElementById('onbName').value.trim();
+  const role = document.getElementById('onbRole').value;
+  const loss = document.getElementById('onbLoss').value.trim();
+  const contact = document.getElementById('onbContact').value.trim();
+
+  if (!name) {
+    alert('Please enter your name so we can personalize your experience. 💛');
+    return;
+  }
+
+  appState.user = { name, role, loss, emergencyContact: contact };
+  appState.messages = [];
+  appState.conversationHistory = [];
+  appState.moodHistory = [];
+  appState.riskLevel = 'low';
+  appState.sessionCount = 1;
+  appState.lastVisit = new Date().toISOString();
+  saveState();
+
+  document.getElementById('onboardingOverlay').style.display = 'none';
+  addInitialGreeting();
+}
+
+function addInitialGreeting() {
+  const name = appState.user.name;
+  const role = appState.user.role;
+  let greeting = '';
+
+  if (role === 'bereaved') {
+    greeting = `Hello ${name} 💛\n\nI'm your Grief Coach — a gentle companion for your journey through loss. I'm here whenever you need to talk, reminisce, or just sit with your feelings.\n\nI can help you with:\n• 💬 **Compassionate conversation** when you need someone\n• 📖 **Guided reminiscence** to honor beautiful memories\n• 🧘 **Coping strategies** designed for your needs\n• 📊 **Well-being check-ins** to track how you're doing\n\nThere's no wrong way to grieve. Take your time. 🌿`;
+  } else if (role === 'caregiver') {
+    greeting = `Hello ${name} 💛\n\nThank you for the loving care you provide. I'm here to support both you and your loved one through this difficult time.\n\nI can help with:\n• 💬 **Understanding grief** in older adults\n• 🔔 **Monitoring well-being** patterns\n• 🧘 **Caregiver self-care** strategies\n• 📚 **Resources** and community support\n\nYou matter too. Let's talk whenever you're ready. 🌿`;
+  } else {
+    greeting = `Hello ${name} 💛\n\nWelcome, provider. I'm a geriatric grief support tool that can assist with:\n\n• 📊 **Behavioral monitoring** and risk flagging\n• 📋 **Clinically formatted** session summaries\n• 🧠 **Evidence-based** intervention suggestions\n• 🔔 **Escalation alerts** for designated contacts\n\nHow can I assist you today? 🌿`;
+  }
+
+  addBotMessage(greeting);
+}
+
+async function addWelcomeBack() {
+  const name = appState.user.name;
+  const lastMsgs = appState.conversationHistory.slice(-4);
+  const daysSinceLast = appState.lastVisit ? Math.floor((Date.now() - new Date(appState.lastVisit).getTime()) / 86400000) : 0;
+
+  let contextNote = '';
+  if (lastMsgs.length > 0) {
+    contextNote = `Our last conversation touched on: ${lastMsgs.map(m => m.content.substring(0, 50)).join('; ')}`;
+  }
+
+  try {
+    const result = await callAI('genericAI', {
+      prompt: `You are a compassionate geriatric grief coach. Generate a warm, brief welcome-back message for ${name}, a ${appState.user.role} user who has visited ${appState.sessionCount} times. ${contextNote}. The message should be 2-3 sentences, empathetic, and acknowledge their return. Use gentle emoji. Return JSON with key "message" as a string.`
+    });
+    addBotMessage(result.message || `Welcome back, ${name} 💛 I'm glad you're here today. How are you feeling?`);
+  } catch(e) {
+    addBotMessage(`Welcome back, ${name} 💛 I'm glad you're here today. How are you feeling?`);
+  }
+}
+
+function addBotMessage(text) {
+  const msg = { role: 'bot', content: text, time: new Date().toISOString() };
+  appState.messages.push(msg);
+  appState.conversationHistory.push({ role: 'assistant', content: text });
+  // Keep conversation history manageable
+  if (appState.conversationHistory.length > 30) {
+    appState.conversationHistory = appState.conversationHistory.slice(-20);
+  }
+  saveState();
+  renderMessages();
+}
+
+function addUserMessage(text) {
+  const msg = { role: 'user', content: text, time: new Date().toISOString() };
+  appState.messages.push(msg);
+  appState.conversationHistory.push({ role: 'user', content: text });
+  if (appState.conversationHistory.length > 30) {
+    appState.conversationHistory = appState.conversationHistory.slice(-20);
+  }
+  saveState();
+  renderMessages();
+}
+
+function renderMessages() {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '';
+
+  appState.messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `message-bubble ${msg.role === 'user' ? 'message-user' : 'message-bot'}`;
+
+    if (msg.role === 'bot') {
+      div.innerHTML = marked.parse(msg.content);
+    } else {
+      div.textContent = msg.content;
+    }
+
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'timestamp';
+    timeDiv.textContent = formatTime(msg.time);
+    if (msg.role === 'user') timeDiv.style.textAlign = 'right';
+    div.appendChild(timeDiv);
+
+    container.appendChild(div);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
+function formatTime(isoString) {
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch(e) { return ''; }
+}
+
+function showTyping() {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.id = 'typingIndicator';
+  div.className = 'typing-indicator';
+  div.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function sendQuick(text) {
+  document.getElementById('userInput').value = text;
+  sendMessage();
+}
+
+function handleKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  const sendBtn = document.getElementById('sendBtn');
+  sendBtn.disabled = true;
+
+  addUserMessage(text);
+  showTyping();
+
+  try {
+    // Build conversation context
+    const recentHistory = appState.conversationHistory.slice(-12);
+    const historyStr = recentHistory.map(m => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`).join('\n');
+
+    const userInfo = appState.user;
+    const moodContext = appState.moodHistory.length > 0 
+      ? `Recent mood scores (1-10): ${appState.moodHistory.slice(-5).join(', ')}` 
+      : '';
+
+    const prompt = `You are a compassionate, expert geriatric grief counselor and conversational coach named "Grief Coach". You specialize in bereavement support for older adults (65+), caregiver support, and geriatric mental health.
+
+USER PROFILE:
+- Name: ${userInfo.name}
+- Role: ${userInfo.role}
+- Loss: ${userInfo.loss || 'Not specified'}
+- Emergency Contact: ${userInfo.emergencyContact || 'Not specified'}
+- Session #: ${appState.sessionCount}
+${moodContext}
+
+CONVERSATION HISTORY:
+${historyStr}
+
+CURRENT USER MESSAGE: "${text}"
+
+INSTRUCTIONS:
+1. Respond with warmth, empathy, and clinical expertise appropriate for geriatric bereavement
+2. Use evidence-based approaches: reminiscence therapy, CBT for grief, meaning reconstruction, continuing bonds theory
+3. Assess the emotional content for risk indicators (depression, suicidal ideation, prolonged grief disorder)
+4. Provide practical coping strategies when appropriate
+5. For reminiscence requests, guide gently through structured memory sharing
+6. Keep responses conversational, warm, and appropriately brief (2-4 paragraphs max)
+7. Use gentle emoji sparingly (1-2 per response)
+8. If detecting risk, include supportive resources
+9. Address loneliness and social isolation proactively
+10. For caregivers: validate their experience, suggest self-care
+11. For providers: use clinical language, provide assessable observations
+
+RISK ASSESSMENT:
+Analyze the user's message for these indicators and rate risk:
+- Expressions of hopelessness or worthlessness
+- References to self-harm or wanting to "join" the deceased
+- Withdrawal indicators
+- Sleep/appetite changes mentioned
+- Duration and intensity of grief expressions
+
+Return a JSON object with EXACTLY these keys:
+- "response": string (your compassionate response to the user, using markdown formatting for emphasis where helpful)
+- "risk_level": string (exactly one of: "low", "moderate", "high")
+- "risk_flags": array of strings (specific concerns noted, empty array if none)
+- "mood_score": number (estimated mood 1-10 based on user's message, 1=very distressed, 10=positive)
+- "suggested_followup": string (a gentle follow-up question or suggestion for next interaction)
+- "alert_caregiver": boolean (true if caregiver/provider should be notified)
+- "alert_reason": string (reason for alert, empty string if no alert needed)`;
+
+    const result = await callAI('genericAI', { prompt });
+
+    hideTyping();
+
+    if (result.response) {
+      addBotMessage(result.response);
+
+      // Update risk level
+      if (result.risk_level) {
+        appState.riskLevel = result.risk_level;
+      }
+
+      // Track mood
+      if (result.mood_score) {
+        appState.moodHistory.push(result.mood_score);
+        if (appState.moodHistory.length > 50) {
+          appState.moodHistory = appState.moodHistory.slice(-30);
+        }
+      }
+
+      // Handle risk escalation
+      if (result.risk_level === 'high') {
+        document.getElementById('crisisBanner').style.display = 'flex';
+        if (result.alert_caregiver && userInfo.emergencyContact) {
+          showCaregiverAlert(result.risk_flags, result.alert_reason);
+        }
+      } else if (result.risk_level === 'moderate') {
+        document.getElementById('crisisBanner').style.display = 'flex';
+      } else {
+        document.getElementById('crisisBanner').style.display = 'none';
+      }
+
+      saveState();
+    } else {
+      addBotMessage("I'm here with you. Could you tell me a little more about what you're feeling? 💛");
+    }
+
+  } catch(e) {
+    hideTyping();
+    addBotMessage(`I had a brief moment of difficulty, but I'm still here for you. 💛 Please try sharing again, or tap one of the quick action buttons below.\n\n*If you need immediate support, please call 988.*`);
+    console.error('AI Error:', e);
+  }
+
+  sendBtn.disabled = false;
+  input.focus();
+}
+
+function showCaregiverAlert(flags, reason) {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = 'crisis-banner';
+  alertDiv.innerHTML = `
+    <span class="text-xl">⚠️</span>
+    <div>
+      <strong>Caregiver Alert Triggered</strong>
+      <p class="text-sm mt-1">Concern detected: ${reason || flags?.join(', ') || 'Elevated distress indicators'}</p>
+      <p class="text-sm">Emergency contact: <strong>${appState.user.emergencyContact}</strong></p>
+      <p class="text-xs mt-1 opacity-70">In a full deployment, your designated contact would receive a clinically formatted notification.</p>
+    </div>
+  `;
+  document.getElementById('chatMessages').appendChild(alertDiv);
+
+  // Store alert
+  const alertData = {
+    timestamp: new Date().toISOString(),
+    user: appState.user.name,
+    risk_flags: flags,
+    reason: reason,
+    contact: appState.user.emergencyContact
+  };
+
+  try {
+    const key = `alert_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
+    fetch(`${API_BASE}/write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value: JSON.stringify(alertData) })
+    });
+  } catch(e) {}
+}
+
+// Settings
+function showSettings() {
+  if (appState.user) {
+    document.getElementById('setName').value = appState.user.name || '';
+    document.getElementById('setRole').value = appState.user.role || 'bereaved';
+    document.getElementById('setLoss').value = appState.user.loss || '';
+    document.getElementById('setContact').value = appState.user.emergencyContact || '';
+  }
+  document.getElementById('settingsOverlay').style.display = 'flex';
+}
+
+function hideSettings() {
+  document.getElementById('settingsOverlay').style.display = 'none';
+}
+
+function saveSettings() {
+  appState.user.name = document.getElementById('setName').value.trim() || appState.user.name;
+  appState.user.role = document.getElementById('setRole').value;
+  appState.user.loss = document.getElementById('setLoss').value.trim();
+  appState.user.emergencyContact = document.getElementById('setContact').value.trim();
+  saveState();
+  hideSettings();
+  addBotMessage(`Settings updated, ${appState.user.name}. I've noted your changes. 💛`);
+}
+
+function clearAllData() {
+  if (confirm('This will erase all your conversations and settings. Are you sure?')) {
+    localStorage.removeItem('griefCoach_state');
+    location.reload();
+  }
+}
+
+// Resources
+function showResources() {
+  document.getElementById('resourcesOverlay').style.display = 'flex';
+}
+
+function hideResources() {
+  document.getElementById('resourcesOverlay').style.display = 'none';
+}
+
+async function findLocalResources() {
+  const container = document.getElementById('aiResources');
+  container.innerHTML = '<div class="resource-card"><p class="text-sm">🔍 Searching for personalized resources...</p></div>';
+
+  try {
+    const result = await callAI('genericAI', {
+      prompt: `You are a geriatric care resource specialist. Generate a helpful list of community resources and recommendations for a ${appState.user.role} dealing with bereavement (loss: "${appState.user.loss || 'not specified'}"). Include specific, real organizations that exist nationwide or online.
+
+Return JSON with key "resources" as an array of objects, each with:
+- "name": string (organization/resource name)
+- "description": string (1-2 sentences about what they offer)
+- "contact": string (phone number or website)
+- "type": string (one of: "support_group", "therapy", "community", "helpline", "online")
+
+Provide exactly 5 resources. Make them real, actionable, and appropriate for older adults.`
+    });
+
+    if (result.resources && Array.isArray(result.resources)) {
+      container.innerHTML = '<h3 class="font-bold text-base mb-3" style="color: var(--primary-dark);">🌟 Personalized Resources</h3>';
+      result.resources.forEach(r => {
+        const typeEmoji = {
+          support_group: '👥', therapy: '🏥', community: '🏘️', helpline: '📞', online: '💻'
+        };
+        container.innerHTML += `
+          <div class="resource-card">
+            <h3 class="font-bold text-sm">${typeEmoji[r.type] || '📌'} ${r.name}</h3>
+            <p class="text-sm mt-1">${r.description}</p>
+            <p class="text-sm mt-1" style="color: var(--primary);"><strong>${r.contact}</strong></p>
+          </div>
+        `;
+      });
+    }
+  } catch(e) {
+    container.innerHTML = '<div class="resource-card"><p class="text-sm">Unable to load personalized resources right now. Please try the listed resources above or call 988 for immediate support. 💛</p></div>';
+  }
+}
+
+// Init on load
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
